@@ -6,6 +6,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 
 import LoginPage from "@/pages/auth/Login";
 import RegisterPage from "@/pages/auth/Register";
+import ForgotPasswordPage from "@/pages/auth/ForgotPassword";
 import DashboardPage from "@/pages/Dashboard";
 import SettingsPage from "@/pages/Settings";
 import NotificationsPage from "@/pages/Notifications";
@@ -33,6 +34,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route path="/" element={<DashboardPage />} />

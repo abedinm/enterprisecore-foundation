@@ -11,6 +11,7 @@ from app.schemas.department import DepartmentOut, DepartmentCreate, DepartmentUp
 from app.schemas.project import ProjectOut, ProjectCreate, ProjectUpdate
 from app.schemas.task import TaskOut, TaskCreate, TaskUpdate
 from app.schemas.audit import AuditLogOut
+from app.schemas.apikey import APIKeyCreate, APIKeyOut, APIKeyCreateResponse
 
 __all__ = [
     "LoginRequest", "RegisterRequest", "TokenPair", "TokenRefreshRequest", "TokenPayload",
@@ -21,4 +22,5 @@ __all__ = [
     "ProjectOut", "ProjectCreate", "ProjectUpdate",
     "TaskOut", "TaskCreate", "TaskUpdate",
     "AuditLogOut",
+    "APIKeyCreate", "APIKeyOut", "APIKeyCreateResponse",
 ]

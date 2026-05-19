@@ -58,9 +58,10 @@ export default function LoginPage() {
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? <><Loader2 className="size-4 animate-spin" /> Signing in…</> : "Sign in"}
           </Button>
-          <p className="text-xs text-center text-zinc-500">
-            No account? <Link to="/register" className="text-brand-600 hover:underline">Create one</Link>
-          </p>
+          <div className="text-xs text-center text-zinc-500 space-y-1">
+            <p>No account? <Link to="/register" className="text-brand-600 hover:underline">Create one</Link></p>
+            <p><Link to="/forgot-password" className="text-brand-600 hover:underline">Forgot password?</Link></p>
+          </div>
           <p className="text-[10px] text-center text-zinc-400">
             Default admin: admin@enterprisecore.io / Admin123!
           </p>
