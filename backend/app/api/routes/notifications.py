@@ -7,7 +7,7 @@ from sqlalchemy import select, update
 
 from app.api.deps import get_db, get_current_active_user, client_ip
 from app.core.permissions import require_admin
-from app.core.notifications import notify
+from app.core.notifications import notify, push_realtime
 from app.core.audit import log_action
 from app.models.user import User
 from app.models.notification import Notification
@@ -118,6 +118,7 @@ def send_notification(
     )
     db.commit()
     db.refresh(n)
+    push_realtime(n)
     return n
 
 
@@ -130,8 +131,10 @@ def broadcast(
 ):
     """Send the same notification to every active user."""
     users = list(db.scalars(select(User).where(User.is_active.is_(True))))
-    for u in users:
+    created = [
         notify(db, user_id=u.id, title=payload.title, message=payload.message, type=payload.type, link=payload.link)
+        for u in users
+    ]
     log_action(
         db,
         user_id=current_user.id,
@@ -140,4 +143,7 @@ def broadcast(
         ip_address=client_ip(request),
     )
     db.commit()
+    for n in created:
+        db.refresh(n)
+        push_realtime(n)
     return {"sent": len(users)}

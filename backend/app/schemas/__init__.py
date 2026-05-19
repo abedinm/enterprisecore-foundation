@@ -2,7 +2,7 @@
 from app.schemas.auth import (
     LoginRequest, RegisterRequest, TokenPair, TokenRefreshRequest, TokenPayload
 )
-from app.schemas.user import UserOut, UserUpdate, UserAdminUpdate, UserListItem, PasswordChange
+from app.schemas.user import UserOut, UserUpdate, UserAdminUpdate, UserAdminCreate, UserListItem, PasswordChange
 from app.schemas.notification import NotificationCreate, NotificationOut, NotificationsBatch
 from app.schemas.settings import (
     UserSettingItem, UserSettingsUpdate, SystemSettingOut, SystemSettingUpdate
@@ -15,7 +15,7 @@ from app.schemas.apikey import APIKeyCreate, APIKeyOut, APIKeyCreateResponse
 
 __all__ = [
     "LoginRequest", "RegisterRequest", "TokenPair", "TokenRefreshRequest", "TokenPayload",
-    "UserOut", "UserUpdate", "UserAdminUpdate", "UserListItem", "PasswordChange",
+    "UserOut", "UserUpdate", "UserAdminUpdate", "UserAdminCreate", "UserListItem", "PasswordChange",
     "NotificationCreate", "NotificationOut", "NotificationsBatch",
     "UserSettingItem", "UserSettingsUpdate", "SystemSettingOut", "SystemSettingUpdate",
     "DepartmentOut", "DepartmentCreate", "DepartmentUpdate",

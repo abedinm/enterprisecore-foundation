@@ -4,6 +4,7 @@ FastAPI application factory + ASGI entrypoint.
 Run with:  uvicorn app.main:app --reload --port 8000
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,15 +13,19 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.api.routes import api_router
+from app.api.routes.ws import router as ws_router
 from app.services.bootstrap import seed
+from app.core.ws_manager import manager as ws_manager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize the DB and seed defaults on startup."""
+    """Initialize the DB, seed defaults, and capture the event loop for WS push."""
     init_db()
     with SessionLocal() as db:
         seed(db)
+    # WebSocket fan-out needs the running event loop so sync handlers can dispatch.
+    ws_manager.bind_loop(asyncio.get_running_loop())
     yield
     # No special shutdown work yet.
 
@@ -47,6 +52,8 @@ def create_app() -> FastAPI:
 
     # ── Routes ──────────────────────────────────────────────────────────────
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+    # WebSocket lives outside /api/v1 so paths stay short and headers minimal.
+    app.include_router(ws_router, prefix="/ws", tags=["ws"])
 
     # ── Root + global error handler ─────────────────────────────────────────
     @app.get("/")

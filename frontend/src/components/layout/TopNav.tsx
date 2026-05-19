@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 export function TopNav() {
   const { user, refreshToken, logout } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
-  const { unread, items, fetch, markRead, markAllRead } = useNotificationStore();
+  const { unread, items, fetch, markRead, markAllRead, connectWS, disconnectWS, wsConnected } = useNotificationStore();
   const navigate = useNavigate();
 
   const [openBell, setOpenBell] = useState(false);
@@ -19,12 +19,14 @@ export function TopNav() {
   const bellRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Initial + 60s poll for notifications
+  // Initial fetch + WebSocket connect.
+  // The poll-every-60s acts as a redundancy mechanism if the WS drops.
   useEffect(() => {
     fetch();
+    connectWS();
     const t = setInterval(fetch, 60_000);
-    return () => clearInterval(t);
-  }, [fetch]);
+    return () => { clearInterval(t); disconnectWS(); };
+  }, [fetch, connectWS, disconnectWS]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -70,13 +72,17 @@ export function TopNav() {
         <button
           onClick={() => setOpenBell((o) => !o)}
           className="h-9 w-9 grid place-items-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 relative"
-          title="Notifications"
+          title={wsConnected ? "Notifications (live)" : "Notifications (polling)"}
         >
           <Bell className="size-4" />
           {unread > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold grid place-items-center">
               {unread > 99 ? "99+" : unread}
             </span>
+          )}
+          {/* Tiny green dot when WebSocket is connected. */}
+          {wsConnected && (
+            <span className="absolute bottom-0 right-0 size-1.5 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-zinc-900" />
           )}
         </button>
         {openBell && (

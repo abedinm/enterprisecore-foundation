@@ -1,7 +1,11 @@
 """User management routes."""
 
+import csv
+import io
+import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
@@ -10,7 +14,9 @@ from app.core.permissions import require_admin
 from app.core.security import hash_password, verify_password
 from app.core.audit import log_action
 from app.models.user import User
-from app.schemas.user import UserOut, UserListItem, UserUpdate, UserAdminUpdate, PasswordChange
+from app.schemas.user import (
+    UserOut, UserListItem, UserUpdate, UserAdminUpdate, UserAdminCreate, PasswordChange,
+)
 
 
 router = APIRouter()
@@ -28,6 +34,83 @@ def list_users(
         stmt = stmt.where((User.email.ilike(like)) | (User.full_name.ilike(like)))
     stmt = stmt.order_by(User.created_at.desc())
     return list(db.scalars(stmt))
+
+
+@router.get("/export", dependencies=[Depends(require_admin)])
+def export_users(
+    format: str = "csv",
+    db: Session = Depends(get_db),
+):
+    """Admin-only export. `format=csv` (default) or `format=json`.
+    Includes everything safe to export — never password hashes."""
+    users = list(db.scalars(select(User).order_by(User.id)))
+    rows = [
+        {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "role": u.role.value,
+            "is_active": u.is_active,
+            "is_verified": u.is_verified,
+            "department_id": u.department_id,
+            "last_login_at": u.last_login_at.isoformat() if u.last_login_at else "",
+            "created_at": u.created_at.isoformat(),
+        }
+        for u in users
+    ]
+
+    if format == "json":
+        buf = io.BytesIO(json.dumps(rows, indent=2).encode("utf-8"))
+        return StreamingResponse(
+            buf, media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="users.json"'},
+        )
+
+    # CSV (default)
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()) if rows else ["id"])
+    writer.writeheader()
+    writer.writerows(rows)
+    csv_bytes = io.BytesIO(buf.getvalue().encode("utf-8"))
+    return StreamingResponse(
+        csv_bytes, media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="users.csv"'},
+    )
+
+
+@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
+def admin_create_user(
+    payload: UserAdminCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Admin-only: create a user with a specific role bypassing self-registration."""
+    if db.scalar(select(User).where(User.email == payload.email)):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    user = User(
+        email=payload.email,
+        full_name=payload.full_name,
+        hashed_password=hash_password(payload.password),
+        role=payload.role,
+        is_active=payload.is_active,
+        is_verified=payload.is_verified,
+        department_id=payload.department_id,
+    )
+    db.add(user)
+    db.flush()
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="user.admin_create",
+        target_type="user",
+        target_id=user.id,
+        detail=f"Created {user.email} as {user.role.value}",
+        ip_address=client_ip(request),
+    )
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.get("/{user_id}", response_model=UserOut)

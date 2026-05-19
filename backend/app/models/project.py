@@ -12,6 +12,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.task import Task
+    from app.models.project_member import ProjectMember
 
 
 class ProjectStatus(str, enum.Enum):
@@ -39,3 +40,6 @@ class Project(Base):
 
     owner: Mapped["User"] = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
     tasks: Mapped[List["Task"]] = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    members: Mapped[List["ProjectMember"]] = relationship(
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )

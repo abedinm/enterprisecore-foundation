@@ -56,6 +56,17 @@ class UserAdminUpdate(BaseModel):
     department_id: Optional[int] = None
 
 
+class UserAdminCreate(BaseModel):
+    """Admin-side user creation (bypasses self-registration)."""
+    email: EmailStr
+    full_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=8, max_length=128)
+    role: UserRole = UserRole.EMPLOYEE
+    is_active: bool = True
+    is_verified: bool = True  # Admin-created accounts are pre-verified by default.
+    department_id: Optional[int] = None
+
+
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=8, max_length=128)
