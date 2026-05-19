@@ -3,6 +3,7 @@
 import csv
 import io
 import json
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
@@ -25,10 +26,13 @@ router = APIRouter()
 @router.get("", response_model=List[UserListItem], dependencies=[Depends(require_admin)])
 def list_users(
     q: Optional[str] = None,
+    include_archived: bool = False,
     db: Session = Depends(get_db),
 ):
-    """Admin-only listing. Optional case-insensitive search on email or name."""
+    """Admin-only listing. Excludes archived by default; pass include_archived=true to see them."""
     stmt = select(User)
+    if not include_archived:
+        stmt = stmt.where(User.deleted_at.is_(None))
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where((User.email.ilike(like)) | (User.full_name.ilike(like)))
@@ -185,6 +189,59 @@ def admin_update_user(
         target_id=user.id,
         detail=str(patch.model_dump(exclude_unset=True)),
         ip_address=client_ip(request),
+    )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/{user_id}/archive", response_model=UserOut, dependencies=[Depends(require_admin)])
+def archive_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Soft-delete a user. Sets deleted_at and is_active=False, revokes sessions.
+    Use /restore to bring them back. The system admin (id=1) cannot be archived."""
+    if user_id == 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot archive the system admin")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.deleted_at = datetime.utcnow()
+    user.is_active = False
+    for r in user.refresh_tokens:
+        r.revoked = True
+    log_action(
+        db, user_id=current_user.id, action="user.archive",
+        target_type="user", target_id=user.id,
+        detail=f"Archived {user.email}", ip_address=client_ip(request),
+    )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/{user_id}/restore", response_model=UserOut, dependencies=[Depends(require_admin)])
+def restore_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Reverse an archive. The user is reactivated."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.deleted_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not archived")
+    user.deleted_at = None
+    user.is_active = True
+    log_action(
+        db, user_id=current_user.id, action="user.restore",
+        target_type="user", target_id=user.id,
+        detail=f"Restored {user.email}", ip_address=client_ip(request),
     )
     db.commit()
     db.refresh(user)

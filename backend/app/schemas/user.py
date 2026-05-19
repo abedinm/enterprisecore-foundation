@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     phone: Optional[str] = None
     department_id: Optional[int] = None
     last_login_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

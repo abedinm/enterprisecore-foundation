@@ -15,6 +15,7 @@ class ProjectOut(BaseModel):
     owner_id: int
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

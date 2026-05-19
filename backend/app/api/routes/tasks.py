@@ -1,5 +1,6 @@
 """Task CRUD inside a Project."""
 
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -26,10 +27,13 @@ def list_tasks(
     project_id: Optional[int] = None,
     assignee_id: Optional[int] = None,
     status_filter: Optional[TaskStatus] = None,
+    include_archived: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     stmt = select(Task)
+    if not include_archived:
+        stmt = stmt.where(Task.deleted_at.is_(None))
     if project_id is not None:
         stmt = stmt.where(Task.project_id == project_id)
     if assignee_id is not None:
@@ -79,12 +83,50 @@ def update_task(
     return row
 
 
+@router.post("/{task_id}/archive", response_model=TaskOut)
+def archive_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Soft-delete a task."""
+    row = db.get(Task, task_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    project = db.get(Project, row.project_id)
+    if not project or not _can_see_project(current_user, project):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    row.deleted_at = datetime.utcnow()
+    db.commit(); db.refresh(row)
+    return row
+
+
+@router.post("/{task_id}/restore", response_model=TaskOut)
+def restore_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    row = db.get(Task, task_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    project = db.get(Project, row.project_id)
+    if not project or not _can_see_project(current_user, project):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if row.deleted_at is None:
+        raise HTTPException(status_code=400, detail="Task is not archived")
+    row.deleted_at = None
+    db.commit(); db.refresh(row)
+    return row
+
+
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    """Hard delete — admin/manager only. Prefer /archive."""
     row = db.get(Task, task_id)
     if not row:
         raise HTTPException(status_code=404, detail="Not found")

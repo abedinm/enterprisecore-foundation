@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     first_admin_password: str = "Admin123!"
     first_admin_name: str = "System Admin"
 
+    # Uploads
+    uploads_dir: str = "./data/uploads"
+    max_upload_mb: int = 25
+    allowed_upload_mimes: str = (
+        "image/png,image/jpeg,image/gif,image/webp,"
+        "application/pdf,text/plain,text/markdown,text/csv,"
+        "application/zip,application/json,"
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",

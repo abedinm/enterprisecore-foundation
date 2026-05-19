@@ -33,6 +33,7 @@ class Project(Base):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     start_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

@@ -13,9 +13,26 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Configure the test environment BEFORE app imports.
+# DATABASE_URL must be set first so the engine in app.database is built against
+# the test-scoped DB rather than touching the real data/enterprisecore.db file.
+os.environ["DATABASE_URL"] = "sqlite:///./data/test_enterprisecore.db"
 os.environ["SECRET_KEY"] = "test-secret-key-must-be-at-least-16-chars"
 os.environ["FIRST_ADMIN_EMAIL"] = "admin@test.io"
 os.environ["FIRST_ADMIN_PASSWORD"] = "Admin123!"
+# Tests can hammer auth endpoints; disable in-process throttles.
+os.environ["RATE_LIMIT_DISABLED"] = "1"
+
+# Wipe any stale test DB from a previous run BEFORE app.database is imported.
+# This ensures init_db() in the lifespan starts from an empty file and creates
+# tables with the latest schema (Base.metadata.create_all does NOT alter
+# existing tables).
+import pathlib
+_test_db = pathlib.Path(__file__).resolve().parent.parent / "data" / "test_enterprisecore.db"
+if _test_db.exists():
+    try:
+        _test_db.unlink()
+    except OSError:
+        pass
 
 from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402

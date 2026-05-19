@@ -20,6 +20,7 @@ from app.core.security import (
 )
 from app.core.audit import log_action
 from app.core import totp
+from app.core.rate_limit import limiter
 from app.models.user import User, UserRole
 from app.models.session import RefreshToken
 from app.models.two_factor import TwoFactor
@@ -31,6 +32,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 def register(req: RegisterRequest, request: Request, db: Session = Depends(get_db)):
     """Create a new user with role EMPLOYEE. Email must be unique."""
     existing = db.scalar(select(User).where(User.email == req.email))
@@ -63,6 +65,7 @@ def register(req: RegisterRequest, request: Request, db: Session = Depends(get_d
 
 
 @router.post("/login", response_model=TokenPair)
+@limiter.limit("10/minute")
 def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """Email + password (+ optional 2FA code) → access + refresh token pair.
 
@@ -73,7 +76,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     if not user or not verify_password(req.password, user.hashed_password):
         # Same error to avoid user-enumeration leakage.
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if not user.is_active:
+    if not user.is_active or user.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
     # ── 2FA gate ────────────────────────────────────────────────────────────

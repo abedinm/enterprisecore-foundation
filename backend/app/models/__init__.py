@@ -14,6 +14,8 @@ from app.models.apikey import APIKey
 from app.models.password_reset import OneTimeToken, OneTimeTokenType
 from app.models.project_member import ProjectMember, ProjectMemberRole
 from app.models.two_factor import TwoFactor
+from app.models.task_comment import TaskComment
+from app.models.task_attachment import TaskAttachment
 
 __all__ = [
     "User", "UserRole",
@@ -28,4 +30,6 @@ __all__ = [
     "OneTimeToken", "OneTimeTokenType",
     "ProjectMember", "ProjectMemberRole",
     "TwoFactor",
+    "TaskComment",
+    "TaskAttachment",
 ]

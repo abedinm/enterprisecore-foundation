@@ -63,10 +63,13 @@ def _can_modify(db: Session, current_user: User, project: Project) -> bool:
 @router.get("", response_model=List[ProjectOut])
 def list_projects(
     mine_only: bool = False,
+    include_archived: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     stmt = select(Project)
+    if not include_archived:
+        stmt = stmt.where(Project.deleted_at.is_(None))
     if mine_only or current_user.role == UserRole.EMPLOYEE:
         # Owned OR membership in either case.
         member_project_ids = [
@@ -123,9 +126,33 @@ def update_project(
     return row
 
 
-@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(
+@router.post("/{project_id}/archive", response_model=ProjectOut)
+def archive_project(
     project_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Soft-delete (preferred). Project stays in the DB; lists exclude it by default."""
+    row = db.get(Project, project_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    if current_user.role != UserRole.ADMIN and row.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from datetime import datetime as _dt
+    row.deleted_at = _dt.utcnow()
+    log_action(
+        db, user_id=current_user.id, action="project.archive",
+        target_type="project", target_id=row.id, ip_address=client_ip(request),
+    )
+    db.commit(); db.refresh(row)
+    return row
+
+
+@router.post("/{project_id}/restore", response_model=ProjectOut)
+def restore_project(
+    project_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -134,6 +161,29 @@ def delete_project(
         raise HTTPException(status_code=404, detail="Not found")
     if current_user.role != UserRole.ADMIN and row.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
+    if row.deleted_at is None:
+        raise HTTPException(status_code=400, detail="Project is not archived")
+    row.deleted_at = None
+    log_action(
+        db, user_id=current_user.id, action="project.restore",
+        target_type="project", target_id=row.id, ip_address=client_ip(request),
+    )
+    db.commit(); db.refresh(row)
+    return row
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Hard delete — admin only, irreversible. Prefer /archive."""
+    row = db.get(Project, project_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can hard-delete projects")
     db.delete(row); db.commit()
     return None
 

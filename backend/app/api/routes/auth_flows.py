@@ -16,6 +16,7 @@ from app.api.deps import get_db, client_ip
 from app.core.security import hash_password
 from app.core.audit import log_action
 from app.core.notifications import notify
+from app.core.rate_limit import limiter
 from app.models.user import User
 from app.models.password_reset import OneTimeToken, OneTimeTokenType
 from app.models.notification import NotificationType
@@ -31,6 +32,7 @@ router = APIRouter()
 
 # ── Password reset ──────────────────────────────────────────────────────────
 @router.post("/password-reset/request", response_model=TokenIssuedResponse)
+@limiter.limit("3/minute")
 def request_password_reset(
     body: PasswordResetRequest,
     request: Request,

@@ -16,6 +16,7 @@ class TaskOut(BaseModel):
     project_id: int
     assignee_id: Optional[int] = None
     due_date: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

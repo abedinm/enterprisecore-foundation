@@ -42,6 +42,9 @@ class User(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"), nullable=True)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Soft-delete marker — null means "live". Archived users are excluded
+    # from default listings but kept for referential integrity and audit.
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
