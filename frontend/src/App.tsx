@@ -16,6 +16,7 @@ import TasksPage from "@/pages/Tasks";
 import DepartmentsPage from "@/pages/Departments";
 import AuditPage from "@/pages/AuditLog";
 import ApiKeysPage from "@/pages/ApiKeys";
+import TwoFactorPage from "@/pages/TwoFactor";
 
 import { useAuthStore } from "@/store/auth";
 import { api } from "@/api/client";
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/departments" element={<RequireAuth roles={["admin","manager"]}><DepartmentsPage /></RequireAuth>} />
         <Route path="/audit" element={<RequireAuth roles={["admin"]}><AuditPage /></RequireAuth>} />
         <Route path="/api-keys" element={<RequireAuth roles={["admin","developer"]}><ApiKeysPage /></RequireAuth>} />
+        <Route path="/security/2fa" element={<TwoFactorPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

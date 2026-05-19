@@ -9,6 +9,8 @@ from app.models.user import UserRole
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+    # Optional TOTP or backup code; required only when the account has 2FA enabled.
+    code: Optional[str] = Field(default=None, min_length=6, max_length=8)
 
 
 class RegisterRequest(BaseModel):

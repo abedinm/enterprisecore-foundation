@@ -16,6 +16,7 @@ const LINKS = [
   { to: "/departments",     label: "Departments",   icon: Building2,       roles: ["admin","manager"] },
   { to: "/audit",           label: "Audit Log",     icon: ShieldCheck,     roles: ["admin"] },
   { to: "/api-keys",        label: "API Keys",      icon: KeyRound,        roles: ["admin","developer"] },
+  { to: "/security/2fa",    label: "2FA",           icon: ShieldCheck,     roles: ["admin","manager","employee","developer"] },
 ];
 
 export function Sidebar() {

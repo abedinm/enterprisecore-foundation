@@ -19,8 +19,10 @@ from app.core.security import (
     create_access_token, create_refresh_token, decode_token,
 )
 from app.core.audit import log_action
+from app.core import totp
 from app.models.user import User, UserRole
 from app.models.session import RefreshToken
+from app.models.two_factor import TwoFactor
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenPair, TokenRefreshRequest
 from app.schemas.user import UserOut
 
@@ -62,7 +64,11 @@ def register(req: RegisterRequest, request: Request, db: Session = Depends(get_d
 
 @router.post("/login", response_model=TokenPair)
 def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    """Email + password → access + refresh token pair."""
+    """Email + password (+ optional 2FA code) → access + refresh token pair.
+
+    If the account has 2FA enabled and no `code` is supplied, returns 403 with
+    detail "Two-factor code required" so the client knows to prompt for it.
+    """
     user = db.scalar(select(User).where(User.email == req.email))
     if not user or not verify_password(req.password, user.hashed_password):
         # Same error to avoid user-enumeration leakage.
@@ -70,6 +76,32 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
+    # ── 2FA gate ────────────────────────────────────────────────────────────
+    tf = db.scalar(select(TwoFactor).where(TwoFactor.user_id == user.id))
+    if tf and tf.enabled:
+        if not req.code:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Two-factor code required")
+        # Try TOTP first; if it doesn't look like one, try backup code.
+        code = req.code.strip()
+        ok = False
+        if code.isdigit() and len(code) == 6:
+            ok = totp.verify_totp(tf.secret, code)
+            if ok:
+                tf.last_used_at = datetime.utcnow()
+        if not ok:
+            used, new_hashes = totp.consume_backup_code(tf.backup_codes_hashed, code)
+            if used:
+                tf.backup_codes_hashed = new_hashes
+                tf.last_used_at = datetime.utcnow()
+                ok = True
+                log_action(
+                    db, user_id=user.id, action="2fa.backup_code_used",
+                    ip_address=client_ip(request),
+                )
+        if not ok:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid 2FA code")
+
+    # ── Issue tokens ────────────────────────────────────────────────────────
     access, expires_in = create_access_token(user_id=user.id, role=user.role)
     refresh, refresh_exp = create_refresh_token(user_id=user.id, role=user.role)
 

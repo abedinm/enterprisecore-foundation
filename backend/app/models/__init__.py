@@ -12,6 +12,8 @@ from app.models.project import Project, ProjectStatus
 from app.models.task import Task, TaskStatus, TaskPriority
 from app.models.apikey import APIKey
 from app.models.password_reset import OneTimeToken, OneTimeTokenType
+from app.models.project_member import ProjectMember, ProjectMemberRole
+from app.models.two_factor import TwoFactor
 
 __all__ = [
     "User", "UserRole",
@@ -24,4 +26,6 @@ __all__ = [
     "Task", "TaskStatus", "TaskPriority",
     "APIKey",
     "OneTimeToken", "OneTimeTokenType",
+    "ProjectMember", "ProjectMemberRole",
+    "TwoFactor",
 ]

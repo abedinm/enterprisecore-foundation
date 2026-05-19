@@ -5,18 +5,22 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     auth, users, notifications, settings, departments,
-    projects, tasks, audit, system, apikeys, auth_flows,
+    projects, tasks, audit, system, apikeys, auth_flows, two_factor,
+    task_comments,
 )
 
 api_router = APIRouter()
 api_router.include_router(auth.router,          prefix="/auth",          tags=["auth"])
 api_router.include_router(auth_flows.router,    prefix="/auth",          tags=["auth"])
+api_router.include_router(two_factor.router,    prefix="/2fa",           tags=["2fa"])
 api_router.include_router(users.router,         prefix="/users",         tags=["users"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(settings.router,      prefix="/settings",      tags=["settings"])
 api_router.include_router(departments.router,   prefix="/departments",   tags=["departments"])
 api_router.include_router(projects.router,      prefix="/projects",      tags=["projects"])
 api_router.include_router(tasks.router,         prefix="/tasks",         tags=["tasks"])
+# task_comments mounted under /tasks so paths become /tasks/{id}/comments
+api_router.include_router(task_comments.router, prefix="/tasks",         tags=["tasks"])
 api_router.include_router(audit.router,         prefix="/audit",         tags=["audit"])
 api_router.include_router(system.router,        prefix="/system",        tags=["system"])
 api_router.include_router(apikeys.router,       prefix="/api-keys",      tags=["api-keys"])
